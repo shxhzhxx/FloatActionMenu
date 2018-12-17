@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:cardCornerRadius="28dp"
+    app:cardBackgroundColor="@color/design_default_color_primary"
+    android:layout_width="56dp"
+    android:layout_height="56dp">
+    <ImageView
+        android:background="?selectableItemBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="center"
+        android:src="@drawable/ic_add"
+        android:layout_gravity="center"/>
+
+</androidx.cardview.widget.CardView>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="FloatActionMenu">
+        <attr name="initVisible" format="boolean"/>
+        <attr name="primaryBtnBackground" format="color"/>
+        <attr name="primaryBtnElevation" format="dimension"/>
+        <attr name="primaryBtnMarginLeft" format="dimension"/>
+        <attr name="primaryBtnMarginTop" format="dimension"/>
+        <attr name="primaryBtnMarginRight" format="dimension"/>
+        <attr name="primaryBtnMarginBottom" format="dimension"/>
+    </declare-styleable>
+</resources>
