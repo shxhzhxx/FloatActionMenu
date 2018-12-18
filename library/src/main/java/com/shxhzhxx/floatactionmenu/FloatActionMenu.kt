@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
@@ -53,14 +54,6 @@ class FloatActionMenu : LinearLayout {
         primaryButton.layoutParams = lp
         primaryButton.setCardBackgroundColor(background)
         primaryButton.cardElevation = elevation
-        primaryButton.apply {
-            if (!initVisible) {
-                alpha = 0f
-                scaleX = 0f
-                scaleY = 0f
-                visibility = View.INVISIBLE
-            }
-        }
         addView(primaryButton)
         primaryButton.setOnClickListener {
             if (isMenuVisible) {
@@ -69,19 +62,20 @@ class FloatActionMenu : LinearLayout {
                 showMenu()
             }
         }
+        hideMenu()
 
+        runAfterLaidOut(primaryButton) { getViews().forEach { resetView(it) } }
+    }
 
-        val handler = Handler(Looper.myLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private fun runAfterLaidOut(view: View, run: () -> Unit) {
         var cnt = 30
-        handler.post(object : Runnable {
+        mainHandler.post(object : Runnable {
             override fun run() {
-                if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && primaryButton.isLaidOut)
-                    || (primaryButton.width != 0 || primaryButton.height != 0) || --cnt < 0
-                ) {
-                    val centerY = (primaryButton.top + primaryButton.height / 2).toFloat()
-                    getViews().forEach { hideView(it, centerY) }
+                if (isViewLaidOut(view) || --cnt < 0) {
+                    run.invoke()
                 } else {
-                    handler.post(this)
+                    mainHandler.post(this)
                 }
             }
         })
@@ -89,16 +83,11 @@ class FloatActionMenu : LinearLayout {
 
     override fun addView(child: View?, index: Int, params: ViewGroup.LayoutParams?) {
         super.addView(child, childCount - 1, params)
-        if (child != null && child != primaryButton && !isMenuVisible) {
-            hideView(child, (primaryButton.top + primaryButton.height / 2).toFloat())
+        if (child != null && child != primaryButton) {
+            resetView(child)
         }
     }
 
-    private fun hideView(view: View, centerY: Float) {
-        view.visibility = View.INVISIBLE
-        view.alpha = 0f
-        view.translationY = centerY - (view.top + view.height / 2).toFloat()
-    }
 
     fun showMenu() {
         showPrimaryButton { showViews() }
@@ -106,55 +95,138 @@ class FloatActionMenu : LinearLayout {
 
     private fun showViews() {
         val rotateDuration = (DURATION * (1f - primaryButton.rotation / 135f)).toLong()
-        primaryButton.animate().apply { cancel() }.withLayer().rotation(135f).setDuration(rotateDuration)
-            .setInterpolator(mFastOutSlowInInterpolator).withEndAction { visibleListener?.invoke(true) }.start()
+        rotatePrimaryBtnImpl(rotateDuration) { visibleListener?.invoke(true) }
 
         getViews().forEach {
-            it.apply { visibility = View.VISIBLE }.animate().apply { cancel() }.withLayer().translationY(0f).alpha(1f)
-                .setDuration(rotateDuration).setInterpolator(mFastOutSlowInInterpolator).start()
+            showViewImpl(it, rotateDuration)
         }
     }
 
-    fun showPrimaryButton(endAction: () -> Unit) {
-        primaryButton.apply { visibility = View.VISIBLE }.animate().apply { cancel() }.alpha(1f).scaleX(1f).scaleY(1f)
-            .setDuration((PRIMARY_DURATION * (1f - primaryButton.alpha)).toLong())
-            .setInterpolator(mFastOutLinearInInterpolator).withEndAction(endAction).withLayer().start()
+    fun showPrimaryButton(endAction: (() -> Unit)? = null) {
+        if (isViewLaidOut(primaryButton)) {
+            primaryButton.apply { visibility = View.VISIBLE }.animate().apply { cancel() }.alpha(1f).scaleX(1f)
+                .scaleY(1f)
+                .setDuration((PRIMARY_DURATION * (1f - primaryButton.alpha)).toLong())
+                .setInterpolator(mFastOutLinearInInterpolator).withEndAction(endAction).withLayer().start()
+        } else {
+            primaryButton.run {
+                visibility = View.VISIBLE
+                alpha = 1f
+                scaleX = 1f
+                scaleY = 1f
+            }
+            endAction?.invoke()
+        }
+    }
+
+    fun hidePrimaryButton(listener: (() -> Unit)? = null) {
+        hideMenu(true, listener)
     }
 
     fun hideMenu(hideFab: Boolean = !initVisible, listener: (() -> Unit)? = null) {
         val rotateDuration = (DURATION * (primaryButton.rotation / 135f)).toLong()
         val centerY = (primaryButton.top + primaryButton.height / 2).toFloat()
         getViews().forEach {
-            it.animate().apply { cancel() }.withLayer().translationY(centerY - (it.top + it.height / 2).toFloat())
-                .alpha(0f).setDuration(rotateDuration).setInterpolator(mFastOutSlowInInterpolator).start()
+            hideViewImpl(it, centerY, rotateDuration)
         }
-
-        primaryButton.animate().apply { cancel() }.withLayer().rotation(0f).setDuration(rotateDuration)
-            .setInterpolator(mFastOutSlowInInterpolator)
-            .withEndAction {
-                getViews().forEach { it.visibility = View.INVISIBLE }
-                if (hideFab) {
-                    primaryButton.animate().apply { cancel() }.withLayer().alpha(0f).scaleX(0f).scaleY(0f)
-                        .setDuration((PRIMARY_DURATION * (primaryButton.alpha)).toLong())
-                        .setInterpolator(mFastOutLinearInInterpolator)
-                        .withEndAction {
-                            listener?.invoke()
-                            visibleListener?.invoke(false)
-                        }
-                        .start()
-                } else {
-                    listener?.invoke()
-                    visibleListener?.invoke(false)
-                }
+        reversePrimaryBtnImpl(rotateDuration) {
+            getViews().forEach { it.visibility = View.INVISIBLE }
+            if (hideFab) {
+                hidePrimaryBtnImpl(listener)
+            } else {
+                listener?.invoke()
+                visibleListener?.invoke(false)
             }
-            .start()
+        }
+    }
+
+    private fun resetView(view: View) {
+        view.visibility = View.INVISIBLE //hide view while waiting for layout, otherwise it will blink.
+        runAfterLaidOut(view) {
+            if (isMenuVisible) {
+                showViewImpl(view, 0)
+            } else {
+                hideViewImpl(view, (primaryButton.top + primaryButton.height / 2).toFloat(), 0)
+            }
+        }
+    }
+
+    private fun hideViewImpl(view: View, centerY: Float, rotateDuration: Long) {
+        if (isViewLaidOut(view) && rotateDuration > 0) {
+            view.animate().apply { cancel() }.withLayer().translationY(centerY - (view.top + view.height / 2).toFloat())
+                .alpha(0f).setDuration(rotateDuration).withEndAction { view.visibility = View.INVISIBLE }
+                .setInterpolator(mFastOutSlowInInterpolator).start()
+        } else {
+            Log.d(TAG, "hideViewImpl:${isViewLaidOut(view)}")
+            view.visibility = View.INVISIBLE
+            view.alpha = 0f
+            view.translationY = centerY - (view.top + view.height / 2).toFloat()
+        }
+    }
+
+    private fun showViewImpl(view: View, rotateDuration: Long) {
+        if (isViewLaidOut(view) && rotateDuration > 0) {
+            view.apply { visibility = View.VISIBLE }.animate().apply { cancel() }.withLayer().translationY(0f).alpha(1f)
+                .setDuration(rotateDuration).setInterpolator(mFastOutSlowInInterpolator).start()
+        } else {
+            view.run {
+                visibility = View.VISIBLE
+                translationY = 0f
+                alpha = 1f
+            }
+        }
     }
 
     val isMenuVisible get() = primaryButton.rotation != 0f
+    private fun isViewLaidOut(view: View) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) view.isLaidOut else (view.width != 0 || view.height != 0)
 
     private fun getViews() = ArrayList<View>().apply {
         for (i in 0 until childCount - 1) {
             add(getChildAt(i))
+        }
+    }
+
+    private fun reversePrimaryBtnImpl(rotateDuration: Long, endAction: (() -> Unit)?) {
+        if (isViewLaidOut(primaryButton)) {
+            primaryButton.animate().apply { cancel() }.withLayer().rotation(0f).setDuration(rotateDuration)
+                .setInterpolator(mFastOutSlowInInterpolator)
+                .withEndAction(endAction)
+                .start()
+        } else {
+            primaryButton.rotation = 0f
+            endAction?.invoke()
+        }
+    }
+
+    private fun rotatePrimaryBtnImpl(rotateDuration: Long, endAction: (() -> Unit)?) {
+        if (isViewLaidOut(primaryButton)) {
+            primaryButton.animate().apply { cancel() }.withLayer().rotation(135f).setDuration(rotateDuration)
+                .setInterpolator(mFastOutSlowInInterpolator).withEndAction(endAction).start()
+        } else {
+            primaryButton.rotation = 135f
+            endAction?.invoke()
+        }
+    }
+
+    private fun hidePrimaryBtnImpl(listener: (() -> Unit)? = null) {
+        if (isViewLaidOut(primaryButton)) {
+            primaryButton.animate().apply { cancel() }.withLayer().alpha(0f).scaleX(0f).scaleY(0f)
+                .setDuration((PRIMARY_DURATION * (primaryButton.alpha)).toLong())
+                .setInterpolator(mFastOutLinearInInterpolator)
+                .withEndAction {
+                    listener?.invoke()
+                    visibleListener?.invoke(false)
+                }
+                .start()
+        } else {
+            primaryButton.run {
+                alpha = 0f
+                scaleX = 0f
+                scaleY = 0f
+                visibility = View.INVISIBLE
+            }
+            listener?.invoke()
         }
     }
 
@@ -170,17 +242,6 @@ class FloatActionMenu : LinearLayout {
             hide animation use alpha and scale animation underlay, we can skip the alpha animation to make user unconscious.
             * */
         fab.alpha = 0f
-
-        val handler = Handler(Looper.myLooper())
-        var cnt = 30
-        handler.post(object : Runnable {
-            override fun run() {
-                if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && fab.isLaidOut) || (fab.width != 0 || fab.height != 0) || --cnt < 0) {
-                    fab.hide()
-                } else {
-                    handler.post(this)
-                }
-            }
-        })
+        runAfterLaidOut(fab) { fab.hide() }
     }
 }
