@@ -35,7 +35,7 @@ class FloatActionMenu : LinearLayout {
         val colorAccent = TypedValue()
         context.theme.resolveAttribute(R.attr.colorAccent, colorAccent, true)
         primaryButton = LayoutInflater.from(context).inflate(R.layout.float_primary_btn, this, false) as CardView
-        val lp = primaryButton.layoutParams as LinearLayout.LayoutParams
+        val lp = primaryButton.layoutParams as LayoutParams
         val dp6 = resources.displayMetrics.density * 6
         val background: Int
         val elevation: Float
