@@ -19,30 +19,35 @@
             android:id="@+id/showPrimaryBtn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="showPrimaryBtn" />
+            android:text="show Primary Btn" />
 
         <Button
             android:id="@+id/hidePrimaryBtn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="hidePrimaryBtn" />
+            android:text="hide Primary Btn" />
 
         <Button
             android:id="@+id/showMenu"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="showMenu" />
+            android:text="show Menu" />
 
         <Button
             android:id="@+id/hideMenu"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="hideMenu" />
+            android:text="hide Menu" />
+        <Button
+            android:id="@+id/hideMenuOnly"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="hide Menu Only" />
         <Button
             android:id="@+id/addBtn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="addBtn" />
+            android:text="add Btn" />
     </LinearLayout>
 
     <com.shxhzhxx.floatactionmenu.FloatActionMenu

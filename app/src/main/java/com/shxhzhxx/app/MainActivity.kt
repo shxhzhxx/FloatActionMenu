@@ -13,6 +13,7 @@ class MainActivity : AppCompatActivity() {
 
         showMenu.setOnClickListener { floatActionMenu.showMenu() }
         hideMenu.setOnClickListener { floatActionMenu.hideMenu() }
+        hideMenuOnly.setOnClickListener { floatActionMenu.hideMenu(false) }
         showPrimaryBtn.setOnClickListener { floatActionMenu.showPrimaryButton() }
         hidePrimaryBtn.setOnClickListener { floatActionMenu.hidePrimaryButton() }
         addBtn.setOnClickListener {
